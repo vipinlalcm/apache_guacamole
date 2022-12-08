@@ -1,0 +1,62 @@
+version: "3.8"
+
+volumes:
+  guacamolemysql:
+    external: true
+
+networks:
+  guacamole:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/16
+          gateway: 172.28.0.1
+    enable_ipv6: false
+
+services:
+  db:
+    image: mysql
+    volumes:
+      - "guacamolemysql:/var/lib/mysql"
+    environment:
+        MYSQL_ROOT_USER: root
+        MYSQL_ALLOW_EMPTY_PASSWORD: rootpassword
+        MYSQL_DATABASE: guacamole_db
+        MYSQL_USER: guacamole_user
+        MYSQL_PASSWORD: guacamolepassword
+    container_name: guacamole_db
+    networks:
+      guacamole:
+    hostname: guacamole_db
+
+  server:
+    image: guacamole/guacd
+    volumes:
+      - .:/tmp
+    container_name: guacd
+    networks:
+      guacamole:
+
+
+  client:
+    image: guacamole/guacamole
+    ports:
+    - '8080:8080'
+    networks:
+      guacamole:
+    links:
+      - guacd
+      - guacamole_db
+    depends_on:
+      - server
+      - db
+    container_name: guacamole
+    environment:
+      MYSQL_DATABASE: guacamole_db
+      MYSQL_USER: guacamole_user
+      MYSQL_PASSWORD: guacamolepassword
+      GUACD_HOSTNAME: server
+      MYSQL_HOSTNAME: db
+    expose:
+      - '8080'
